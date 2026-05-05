@@ -41,3 +41,15 @@ class MealCorrection(BaseModel):
     fat: Optional[float] = None
     carbs: Optional[float] = None
     confidence: Optional[float] = None
+
+class DailyCaloriesItem(BaseModel):
+    date: str
+    total_calories: float
+
+
+class CaloriesWeekResponse(BaseModel):
+    start_date: str
+    end_date: str
+    total_calories: float
+    meals_count: int
+    days: list[DailyCaloriesItem]

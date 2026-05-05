@@ -15,6 +15,7 @@ from app.schemas.meal import (
     MealRead,
     CaloriesDayResponse,
     MealCorrection,
+    CaloriesWeekResponse,
 )
 from app.services.ai_food_service import recognize_food_from_photo
 
@@ -39,6 +40,21 @@ def get_today_period():
     end_of_day = start_of_day + timedelta(days=1)
 
     return start_of_day, end_of_day
+
+def get_week_period():
+    now = datetime.utcnow()
+
+    start_of_today = datetime(
+        year=now.year,
+        month=now.month,
+        day=now.day
+    )
+
+    start_of_week = start_of_today - timedelta(days=start_of_today.weekday())
+
+    end_of_week = start_of_week + timedelta(days=7)
+
+    return start_of_week, end_of_week
 
 @router.post("/photo", response_model=MealPhotoResponse)
 def upload_meal_photo(
@@ -237,3 +253,53 @@ def correct_meal_result(
         "created_at": meal.created_at,
         "items": updated_items
     }
+
+
+
+@router.get("/calories/week", response_model=CaloriesWeekResponse)
+def get_calories_for_week(
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    start_of_week, end_of_week = get_week_period()
+
+    statement = (
+        select(MealEntry)
+        .where(MealEntry.user_id == current_user.id)
+        .where(MealEntry.created_at >= start_of_week)
+        .where(MealEntry.created_at < end_of_week)
+    )
+
+    meals = session.exec(statement).all()
+
+    daily_totals = {}
+
+    for day_number in range(7):
+        current_day = start_of_week + timedelta(days=day_number)
+        date_key = current_day.date().isoformat()
+        daily_totals[date_key] = 0
+
+    for meal in meals:
+        date_key = meal.created_at.date().isoformat()
+        daily_totals[date_key] += meal.total_calories
+
+    days = []
+
+    for date_key, total in daily_totals.items():
+        days.append(
+            {
+                "date": date_key,
+                "total_calories": total
+            }
+        )
+
+    total_calories = sum(meal.total_calories for meal in meals)
+
+    return {
+        "start_date": start_of_week.date().isoformat(),
+        "end_date": (end_of_week - timedelta(days=1)).date().isoformat(),
+        "total_calories": total_calories,
+        "meals_count": len(meals),
+        "days": days
+    }
+
