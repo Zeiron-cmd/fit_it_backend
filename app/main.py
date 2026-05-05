@@ -4,8 +4,10 @@ from sqlmodel import SQLModel
 from app.database import engine
 from app.models.user import User
 from app.models.profile import UserProfile
+from app.models.meal import FoodPhoto, MealEntry, DetectedFoodItem
 from app.routers.auth import router as auth_router
 from app.routers.profile import router as profile_router
+from app.routers.meals import router as meals_router
 
 
 app = FastAPI(title="Fit it Backend")
@@ -23,3 +25,4 @@ def root():
 
 app.include_router(auth_router)
 app.include_router(profile_router)
+app.include_router(meals_router)
