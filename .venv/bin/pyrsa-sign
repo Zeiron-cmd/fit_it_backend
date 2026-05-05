@@ -1,0 +1,6 @@
+#!/mnt/c/Users/timuv/fit_it_backend/.venv/bin/python
+import sys
+from rsa.cli import sign
+if __name__ == '__main__':
+    sys.argv[0] = sys.argv[0].removesuffix('.exe')
+    sys.exit(sign())
