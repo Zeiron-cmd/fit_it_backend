@@ -34,3 +34,5 @@ class DetectedFoodItem(SQLModel, table=True):
     protein: float
     fat: float
     carbs: float
+
+    confidence: float = 0.0

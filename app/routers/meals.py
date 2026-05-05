@@ -10,7 +10,12 @@ from app.database import get_session
 from app.models.user import User
 from app.models.meal import FoodPhoto, MealEntry, DetectedFoodItem
 from app.routers.auth import get_current_user
-from app.schemas.meal import MealPhotoResponse, MealRead, CaloriesDayResponse
+from app.schemas.meal import (
+    MealPhotoResponse,
+    MealRead,
+    CaloriesDayResponse,
+    MealCorrection,
+)
 from app.services.ai_food_service import recognize_food_from_photo
 
 
@@ -90,7 +95,8 @@ def upload_meal_photo(
             calories=item["calories"],
             protein=item["protein"],
             fat=item["fat"],
-            carbs=item["carbs"]
+            carbs=item["carbs"],
+            confidence=item["confidence"]
         )
 
         session.add(detected_item)
@@ -168,4 +174,66 @@ def get_calories_for_today(
         "date": start_of_day.date().isoformat(),
         "total_calories": total_calories,
         "meals_count": len(meals)
+    }
+
+@router.patch("/{meal_id}", response_model=MealRead)
+def correct_meal_result(
+    meal_id: int,
+    correction_data: MealCorrection,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    statement = (
+        select(MealEntry)
+        .where(MealEntry.id == meal_id)
+        .where(MealEntry.user_id == current_user.id)
+    )
+
+    meal = session.exec(statement).first()
+
+    if meal is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Запись питания не найдена"
+        )
+
+    items_statement = select(DetectedFoodItem).where(
+        DetectedFoodItem.meal_id == meal.id
+    )
+
+    items = session.exec(items_statement).all()
+
+    if not items:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Распознанные продукты не найдены"
+        )
+
+    # Сейчас у нас fake AI возвращает только один продукт.
+    # Поэтому исправляем первый продукт.
+    item = items[0]
+
+    update_data = correction_data.model_dump(exclude_unset=True)
+
+    for field, value in update_data.items():
+        setattr(item, field, value)
+
+    session.add(item)
+    session.commit()
+    session.refresh(item)
+
+    # После исправления пересчитываем калории приёма пищи.
+    updated_items = session.exec(items_statement).all()
+    meal.total_calories = sum(food_item.calories for food_item in updated_items)
+
+    session.add(meal)
+    session.commit()
+    session.refresh(meal)
+
+    return {
+        "id": meal.id,
+        "photo_id": meal.photo_id,
+        "total_calories": meal.total_calories,
+        "created_at": meal.created_at,
+        "items": updated_items
     }

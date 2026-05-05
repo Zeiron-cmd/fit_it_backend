@@ -12,6 +12,7 @@ def recognize_food_from_photo(file_path: str) -> list[dict]:
             "calories": 250,
             "protein": 18,
             "fat": 16,
-            "carbs": 3
+            "carbs": 3,
+            "confidence": 0.92
         }
     ]

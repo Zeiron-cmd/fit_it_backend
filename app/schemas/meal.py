@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -9,6 +10,7 @@ class FoodItemRead(BaseModel):
     protein: float
     fat: float
     carbs: float
+    confidence: float
 
 
 class MealPhotoResponse(BaseModel):
@@ -30,3 +32,12 @@ class CaloriesDayResponse(BaseModel):
     date: str
     total_calories: float
     meals_count: int
+
+
+class MealCorrection(BaseModel):
+    name: Optional[str] = None
+    calories: Optional[float] = None
+    protein: Optional[float] = None
+    fat: Optional[float] = None
+    carbs: Optional[float] = None
+    confidence: Optional[float] = None
