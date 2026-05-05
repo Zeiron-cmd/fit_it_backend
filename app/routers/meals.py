@@ -1,15 +1,16 @@
 import os
 import shutil
+from datetime import datetime, timedelta
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app.database import get_session
 from app.models.user import User
 from app.models.meal import FoodPhoto, MealEntry, DetectedFoodItem
 from app.routers.auth import get_current_user
-from app.schemas.meal import MealPhotoResponse
+from app.schemas.meal import MealPhotoResponse, MealRead, CaloriesDayResponse
 from app.services.ai_food_service import recognize_food_from_photo
 
 
@@ -21,6 +22,18 @@ router = APIRouter(
 
 UPLOAD_DIR = "uploads"
 
+def get_today_period():
+    now = datetime.utcnow()
+
+    start_of_day = datetime(
+        year=now.year,
+        month=now.month,
+        day=now.day
+    )
+
+    end_of_day = start_of_day + timedelta(days=1)
+
+    return start_of_day, end_of_day
 
 @router.post("/photo", response_model=MealPhotoResponse)
 def upload_meal_photo(
@@ -90,4 +103,69 @@ def upload_meal_photo(
         "photo_id": food_photo.id,
         "items": ai_result,
         "total_calories": total_calories
+    }
+
+
+
+
+@router.get("/day", response_model=list[MealRead])
+def get_meals_for_today(
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    start_of_day, end_of_day = get_today_period()
+
+    statement = (
+        select(MealEntry)
+        .where(MealEntry.user_id == current_user.id)
+        .where(MealEntry.created_at >= start_of_day)
+        .where(MealEntry.created_at < end_of_day)
+    )
+
+    meals = session.exec(statement).all()
+
+    result = []
+
+    for meal in meals:
+        items_statement = select(DetectedFoodItem).where(
+            DetectedFoodItem.meal_id == meal.id
+        )
+
+        items = session.exec(items_statement).all()
+
+        result.append(
+            {
+                "id": meal.id,
+                "photo_id": meal.photo_id,
+                "total_calories": meal.total_calories,
+                "created_at": meal.created_at,
+                "items": items
+            }
+        )
+
+    return result
+
+
+@router.get("/calories/day", response_model=CaloriesDayResponse)
+def get_calories_for_today(
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    start_of_day, end_of_day = get_today_period()
+
+    statement = (
+        select(MealEntry)
+        .where(MealEntry.user_id == current_user.id)
+        .where(MealEntry.created_at >= start_of_day)
+        .where(MealEntry.created_at < end_of_day)
+    )
+
+    meals = session.exec(statement).all()
+
+    total_calories = sum(meal.total_calories for meal in meals)
+
+    return {
+        "date": start_of_day.date().isoformat(),
+        "total_calories": total_calories,
+        "meals_count": len(meals)
     }
