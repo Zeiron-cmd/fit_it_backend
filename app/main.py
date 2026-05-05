@@ -1,19 +1,25 @@
 from fastapi import FastAPI
+from sqlmodel import SQLModel
 
-from app.database import create_db_and_tables
-from app.routers import auth
+from app.database import engine
+from app.models.user import User
+from app.models.profile import UserProfile
+from app.routers.auth import router as auth_router
+from app.routers.profile import router as profile_router
+
 
 app = FastAPI(title="Fit it Backend")
 
 
 @app.on_event("startup")
 def on_startup():
-    create_db_and_tables()
-
-
-app.include_router(auth.router)
+    SQLModel.metadata.create_all(engine)
 
 
 @app.get("/")
 def root():
     return {"message": "Fit it backend is running"}
+
+
+app.include_router(auth_router)
+app.include_router(profile_router)
