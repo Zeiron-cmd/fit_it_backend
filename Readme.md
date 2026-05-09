@@ -36,3 +36,8 @@ GET /meals/calories/week
 PATCH /meals/{meal_id}
 
 DELETE /meals/{meal_id}
+
+
+
+
+ngrok http 8000 --domain=ungeographical-overenviously-giuliana.ngrok-free.dev
