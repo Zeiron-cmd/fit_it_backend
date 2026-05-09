@@ -16,15 +16,23 @@ Backend 1: авторизация, профиль пользователя, ка
 - удаление записи питания
 
 POST /auth/register
+
 POST /auth/login
+
 GET /auth/me
 
 GET /profile/me
+
 PATCH /profile/me
 
 POST /meals/photo
+
 GET /meals/day
+
 GET /meals/calories/day
+
 GET /meals/calories/week
+
 PATCH /meals/{meal_id}
+
 DELETE /meals/{meal_id}
