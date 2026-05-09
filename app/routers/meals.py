@@ -303,3 +303,55 @@ def get_calories_for_week(
         "days": days
     }
 
+
+@router.delete("/{meal_id}")
+def delete_meal(
+    meal_id: int,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    statement = (
+        select(MealEntry)
+        .where(MealEntry.id == meal_id)
+        .where(MealEntry.user_id == current_user.id)
+    )
+
+    meal = session.exec(statement).first()
+
+    if meal is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Запись питания не найдена"
+        )
+
+    items_statement = select(DetectedFoodItem).where(
+        DetectedFoodItem.meal_id == meal.id
+    )
+    items = session.exec(items_statement).all()
+
+    for item in items:
+        session.delete(item)
+
+    photo = None
+    photo_path = None
+
+    if meal.photo_id is not None:
+        photo = session.get(FoodPhoto, meal.photo_id)
+
+        if photo is not None:
+            photo_path = photo.file_path
+
+    session.delete(meal)
+
+    if photo is not None:
+        session.delete(photo)
+
+    session.commit()
+
+    if photo_path and os.path.exists(photo_path):
+        os.remove(photo_path)
+
+    return {
+        "message": "Запись питания удалена"
+    }
+
