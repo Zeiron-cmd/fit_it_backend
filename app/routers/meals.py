@@ -88,7 +88,13 @@ def upload_meal_photo(
     session.commit()
     session.refresh(food_photo)
 
-    ai_result = recognize_food_from_photo(file_path)
+    try:
+        ai_result = recognize_food_from_photo(file_path)
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
 
     total_calories = sum(item["calories"] for item in ai_result)
 

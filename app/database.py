@@ -1,17 +1,21 @@
-from sqlmodel import SQLModel, create_engine, Session
+from sqlmodel import SQLModel, Session, create_engine
 
-DATABASE_URL = "sqlite:///./fit_it.db"
+from app.config import get_settings
+
+
+settings = get_settings()
 
 engine = create_engine(
-    DATABASE_URL,
-    echo=True,
-    connect_args={"check_same_thread": False}
+    settings.DATABASE_URL,
+    echo=False,
+    pool_pre_ping=True,
 )
 
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
 
-def get_session(): 
-    with Session(engine) as session: 
+
+def get_session():
+    with Session(engine) as session:
         yield session

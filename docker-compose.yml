@@ -1,8 +1,47 @@
 services:
+  db:
+    image: postgres:16-alpine
+    container_name: fit_it_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-fit_it}
+      POSTGRES_USER: ${POSTGRES_USER:-fit_it}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fit_it_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fit_it} -d ${POSTGRES_DB:-fit_it}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   backend:
     build: .
     container_name: fit_it_backend
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
       - "8000:8000"
+    environment:
+      BACKEND_PUBLIC_URL: ${BACKEND_PUBLIC_URL:-http://localhost:8000}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://fit_it:fit_it_password@db:5432/fit_it}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change_this_secret_key_in_env}
+      SESSION_SECRET_KEY: ${SESSION_SECRET_KEY:-change_this_session_secret_in_env}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      FRONTEND_OAUTH_REDIRECT_URL: ${FRONTEND_OAUTH_REDIRECT_URL:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      YANDEX_CLIENT_ID: ${YANDEX_CLIENT_ID:-}
+      YANDEX_CLIENT_SECRET: ${YANDEX_CLIENT_SECRET:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
     volumes:
       - ./uploads:/app/uploads
+
+volumes:
+  postgres_data:

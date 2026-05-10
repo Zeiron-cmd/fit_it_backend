@@ -1,13 +1,20 @@
-Backend 1: авторизация, профиль пользователя, калории по фото
+# Fit it Backend
 
-Реализовано:
+FastAPI backend для авторизации, профиля пользователя, загрузки фото еды, распознавания еды через Gemini и дневника питания.
+
+## Реализовано
+
 - регистрация пользователя
-- вход пользователя
+- вход пользователя по email/password
+- `POST /auth/token` — стандартная OAuth2-compatible выдача JWT bearer-токена
 - JWT-авторизация
 - получение текущего пользователя
+- OAuth login: Google, GitHub, Yandex через Authlib
+- PostgreSQL вместо SQLite
 - получение и редактирование профиля
 - загрузка фото еды
-- заглушка нейронки для распознавания еды
+- распознавание еды через Gemini при наличии `GEMINI_API_KEY`
+- fallback-заглушка распознавания без `GEMINI_API_KEY`, чтобы локальная разработка не ломалась
 - сохранение результата в базу
 - ручное исправление результата
 - дневник питания за день
@@ -15,29 +22,63 @@ Backend 1: авторизация, профиль пользователя, ка
 - подсчёт калорий за неделю
 - удаление записи питания
 
-POST /auth/register
+## Быстрый запуск
 
-POST /auth/login
+```bash
+cp .env.example .env
+# заполнить JWT_SECRET_KEY, SESSION_SECRET_KEY, при необходимости OAuth и GEMINI_API_KEY
+docker compose up --build
+```
 
-GET /auth/me
+API будет доступен на `http://localhost:8000`.
+Swagger UI: `http://localhost:8000/docs`.
 
-GET /profile/me
+## Auth endpoints
 
-PATCH /profile/me
+- `POST /auth/register`
+- `POST /auth/login` — JSON `{ "email": "...", "password": "..." }`
+- `POST /auth/token` — form-data для OAuth2 Password Flow: `username`, `password`
+- `GET /auth/me`
+- `GET /auth/oauth/providers`
+- `GET /auth/oauth/google/login`
+- `GET /auth/oauth/github/login`
+- `GET /auth/oauth/yandex/login`
 
-POST /meals/photo
+OAuth callback URL в настройках провайдеров:
 
-GET /meals/day
+- Google: `http://localhost:8000/auth/oauth/google/callback`
+- GitHub: `http://localhost:8000/auth/oauth/github/callback`
+- Yandex: `http://localhost:8000/auth/oauth/yandex/callback`
 
-GET /meals/calories/day
+Если `FRONTEND_OAUTH_REDIRECT_URL` задан, backend после OAuth перенаправит пользователя туда с query-параметрами `access_token` и `token_type`. Если не задан — callback вернёт JSON с токеном.
 
-GET /meals/calories/week
+## Profile endpoints
 
-PATCH /meals/{meal_id}
+- `GET /profile/me`
+- `PATCH /profile/me`
 
-DELETE /meals/{meal_id}
+## Meals endpoints
 
+- `POST /meals/photo`
+- `GET /meals/day`
+- `GET /meals/calories/day`
+- `GET /meals/calories/week`
+- `PATCH /meals/{meal_id}`
+- `DELETE /meals/{meal_id}`
 
+## Gemini
 
+Для реального распознавания еды укажите в `.env`:
 
-ngrok http 8000 --domain=ungeographical-overenviously-giuliana.ngrok-free.dev
+```env
+GEMINI_API_KEY=your_key
+GEMINI_MODEL=gemini-3-flash-preview
+```
+
+Без ключа backend вернёт демо-результат, как раньше.
+
+## Ngrok example
+
+```bash
+ngrok http 8000
+```
