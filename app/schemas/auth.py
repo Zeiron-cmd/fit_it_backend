@@ -30,3 +30,8 @@ class Token(BaseModel):
 class OAuthProviderRead(BaseModel):
     provider: str
     enabled: bool
+
+class TokenValidateResponse(BaseModel):
+    valid: bool
+    user_id: str
+    email: str

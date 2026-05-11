@@ -1,15 +1,15 @@
 from urllib.parse import urlencode
 
 from authlib.integrations.base_client import OAuthError
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordRequestForm
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlmodel import Session, select
 from starlette.responses import RedirectResponse
 
 from app.config import get_settings
 from app.database import get_session
 from app.models.user import User
-from app.schemas.auth import OAuthProviderRead, Token, UserLogin, UserRead, UserRegister
+from app.schemas.auth import OAuthProviderRead, Token, UserLogin, UserRead, UserRegister, TokenValidateResponse
 from app.services.auth_service import (
     create_access_token,
     decode_access_token,
@@ -103,17 +103,18 @@ def login_user(
     )
 
 
-@router.post("/token", response_model=Token)
-def issue_token(
-    form_data: OAuth2PasswordRequestForm = Depends(),
-    session: Session = Depends(get_session),
-):
-    """OAuth2-compatible password grant endpoint for Swagger and mobile clients."""
-    return _authenticate_with_email_and_password(
-        email=form_data.username,
-        password=form_data.password,
-        session=session,
-    )
+# @router.post("/token", response_model=Token)
+# def issue_token(
+#     email: str = Form(...),
+#     password: str = Form(...),
+#     session: Session = Depends(get_session),
+# ):
+#     """Issue an access token using email and password."""
+#     return _authenticate_with_email_and_password(
+#         email=email,
+#         password=password,
+#         session=session,
+#     )
 
 
 @router.get("/me", response_model=UserRead)
@@ -180,3 +181,14 @@ def _authenticate_with_email_and_password(
         "access_token": access_token,
         "token_type": "bearer",
     }
+
+@router.get("/token/validate", response_model=TokenValidateResponse)
+def validate_token(
+    current_user: User = Depends(get_current_user),
+):
+    """Validate current access token."""
+    return TokenValidateResponse(
+        valid=True,
+        user_id=str(current_user.id),
+        email=current_user.email,
+    )
