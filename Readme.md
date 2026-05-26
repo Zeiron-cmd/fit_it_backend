@@ -80,5 +80,5 @@ GEMINI_MODEL=gemini-3-flash-preview
 ## Ngrok example
 
 ```bash
-ngrok http 8000
+ngrok http 8000 --domain=ungeographical-overenviously-giuliana.ngrok-free.dev --host-header=rewrite 
 ```

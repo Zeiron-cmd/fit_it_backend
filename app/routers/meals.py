@@ -348,11 +348,11 @@ def delete_meal(
             photo_path = photo.file_path
 
     session.delete(meal)
+    session.commit()
 
     if photo is not None:
         session.delete(photo)
-
-    session.commit()
+        session.commit()
 
     if photo_path and os.path.exists(photo_path):
         os.remove(photo_path)
@@ -360,4 +360,3 @@ def delete_meal(
     return {
         "message": "Запись питания удалена"
     }
-
