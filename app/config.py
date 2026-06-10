@@ -3,6 +3,21 @@ from functools import lru_cache
 from typing import Optional
 
 
+
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    database_url: str = "sqlite:///./fit_it.db"
+    secret_key: str = "change_me"
+    access_token_expire_minutes: int = 60
+
+    class Config:
+        env_file = ".env"
+
+
+settings = Settings()
+
 class Settings:
     """Application settings loaded from environment variables."""
     BACKEND_PUBLIC_URL: str = os.getenv("BACKEND_PUBLIC_URL", "http://localhost:8000")
@@ -38,3 +53,5 @@ class Settings:
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+

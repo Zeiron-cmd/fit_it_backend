@@ -28,6 +28,7 @@ from app.services.oauth_service import (
 router = APIRouter(prefix="/auth", tags=["Auth"])
 bearer_scheme = HTTPBearer()
 settings = get_settings()
+OAUTH_MOBILE_SESSION_KEY_PREFIX = "oauth_mobile"
 
 
 def get_current_user(
@@ -128,8 +129,9 @@ def list_oauth_providers():
 
 
 @router.get("/oauth/{provider}/login")
-async def oauth_login(provider: str, request: Request):
+async def oauth_login(provider: str, request: Request, mobile: bool = False):
     client = get_oauth_client(provider)
+    request.session[f"{OAUTH_MOBILE_SESSION_KEY_PREFIX}:{provider}"] = mobile
     redirect_uri = f"{settings.BACKEND_PUBLIC_URL}/auth/oauth/{provider}/callback"
     return await client.authorize_redirect(request, redirect_uri)
 
@@ -141,6 +143,12 @@ async def oauth_callback(
     session: Session = Depends(get_session),
 ):
     client = get_oauth_client(provider)
+    is_mobile = bool(
+        request.session.pop(
+            f"{OAUTH_MOBILE_SESSION_KEY_PREFIX}:{provider}",
+            False,
+        )
+    )
 
     try:
         token = await client.authorize_access_token(request)
@@ -153,6 +161,16 @@ async def oauth_callback(
 
     user = get_or_create_oauth_user(profile, session)
     token_data = create_token_for_user(user)
+
+    if is_mobile:
+        if not settings.MOBILE_OAUTH_REDIRECT_URL:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="MOBILE_OAUTH_REDIRECT_URL не настроен",
+            )
+
+        query = urlencode(token_data)
+        return RedirectResponse(f"{settings.MOBILE_OAUTH_REDIRECT_URL}?{query}")
 
     if settings.FRONTEND_OAUTH_REDIRECT_URL:
         query = urlencode(token_data)
