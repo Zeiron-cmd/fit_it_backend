@@ -1,44 +1,46 @@
+import os
 from functools import lru_cache
 from typing import Optional
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
 
+class Settings:
+    """Application settings loaded from environment variables."""
+    BACKEND_PUBLIC_URL: str = os.getenv("BACKEND_PUBLIC_URL", "http://localhost:8000")
+    PROJECT_NAME: str = os.getenv("PROJECT_NAME", "Fit it Backend")
 
-class Settings(BaseSettings):
-    BACKEND_PUBLIC_URL: str = "http://localhost:8000"
-    PROJECT_NAME: str = "Fit it Backend"
-
-    DATABASE_URL: str = (
-        "postgresql+psycopg2://fit_it:fit_it_password@db:5432/fit_it"
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL",
+        "postgresql+psycopg2://fit_it:fit_it_password@db:5432/fit_it",
     )
 
-    JWT_SECRET_KEY: str = "change_this_secret_key_in_env"
-    JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "change_this_secret_key_in_env")
+    JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 
-    SESSION_SECRET_KEY: str = "change_this_session_secret_in_env"
+    SESSION_SECRET_KEY: str = os.getenv("SESSION_SECRET_KEY", "change_this_session_secret_in_env")
 
-    FRONTEND_URL: str = "http://localhost:5173"
-    FRONTEND_OAUTH_REDIRECT_URL: Optional[str] = None
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    FRONTEND_OAUTH_REDIRECT_URL: Optional[str] = os.getenv("FRONTEND_OAUTH_REDIRECT_URL")
 
-    GOOGLE_CLIENT_ID: Optional[str] = None
-    GOOGLE_CLIENT_SECRET: Optional[str] = None
+    GOOGLE_CLIENT_ID: Optional[str] = os.getenv("GOOGLE_CLIENT_ID")
+    GOOGLE_CLIENT_SECRET: Optional[str] = os.getenv("GOOGLE_CLIENT_SECRET")
 
-    GITHUB_CLIENT_ID: Optional[str] = None
-    GITHUB_CLIENT_SECRET: Optional[str] = None
+    GITHUB_CLIENT_ID: Optional[str] = os.getenv("GITHUB_CLIENT_ID")
+    GITHUB_CLIENT_SECRET: Optional[str] = os.getenv("GITHUB_CLIENT_SECRET")
 
-    YANDEX_CLIENT_ID: Optional[str] = None
-    YANDEX_CLIENT_SECRET: Optional[str] = None
+    YANDEX_CLIENT_ID: Optional[str] = os.getenv("YANDEX_CLIENT_ID")
+    YANDEX_CLIENT_SECRET: Optional[str] = os.getenv("YANDEX_CLIENT_SECRET")
 
-    GEMINI_API_KEY: Optional[str] = None
-    GEMINI_MODEL: str = "gemini-2.5-flash"
-
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        extra="ignore"
+    MOBILE_OAUTH_REDIRECT_URL: str = os.getenv("MOBILE_OAUTH_REDIRECT_URL", "fittrack://oauth-callback")
+    OPENROUTER_API_KEY: Optional[str] = os.getenv("OPENROUTER_API_KEY")
+    OPENROUTER_MODEL: str = os.getenv(
+        "OPENROUTER_MODEL",
+        "nvidia/nemotron-nano-12b-v2-vl:free"
     )
 
 
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+

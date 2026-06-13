@@ -9,4 +9,5 @@ python-jose[cryptography]
 python-multipart
 authlib
 itsdangerous
-google-genai>=1.55.0
+openai
+

@@ -4,13 +4,24 @@ from typing import Any
 
 from app.config import get_settings
 
+import base64
+from openai import OpenAI
+
+
+
 
 FOOD_RECOGNITION_PROMPT = """
-Проанализируй фото еды и верни только JSON без Markdown.
-Формат ответа:
+Проанализируй изображение еды.
+
+Верни ТОЛЬКО валидный JSON-массив.
+Не используй markdown.
+Не используй ```json.
+Не добавляй пояснений.
+
+Формат:
 [
   {
-    "name": "название продукта или блюда на русском",
+    "name": "название блюда",
     "calories": 250,
     "protein": 18,
     "fat": 16,
@@ -19,38 +30,65 @@ FOOD_RECOGNITION_PROMPT = """
   }
 ]
 
-Оцени КБЖУ для видимой порции. Если на фото несколько продуктов — верни несколько объектов.
-confidence должен быть числом от 0 до 1.
+Оцени КБЖУ для видимой порции.
+Если продуктов несколько — верни несколько объектов.
 """.strip()
 
 
+import base64
+from openai import OpenAI
+
+
 def recognize_food_from_photo(file_path: str) -> list[dict]:
-    """
-    Recognize food from a photo through Gemini when GEMINI_API_KEY is configured.
-    Without an API key the old demo fallback is kept, so local development still works.
-    """
     settings = get_settings()
 
-    if not settings.GEMINI_API_KEY:
-        return _fallback_food_result()
+    if not settings.OPENROUTER_API_KEY:
+        raise RuntimeError("OPENROUTER_API_KEY не настроен")
 
     try:
-        from google import genai
+        with open(file_path, "rb") as image_file:
+            image_base64 = base64.b64encode(image_file.read()).decode()
 
-        client = genai.Client(api_key=settings.GEMINI_API_KEY)
-        uploaded_file = client.files.upload(file=file_path)
-        response = client.models.generate_content(
-            model=settings.GEMINI_MODEL,
-            contents=[uploaded_file, FOOD_RECOGNITION_PROMPT],
+        client = OpenAI(
+            api_key=settings.OPENROUTER_API_KEY,
+            base_url="https://openrouter.ai/api/v1",
         )
-        return _parse_food_items(response.text)
-    except Exception:  # noqa: BLE001 - keep demo flow working if Gemini is unavailable by region/key/quota.
-        return _fallback_food_result()
+
+        response = client.chat.completions.create(
+            model=settings.OPENROUTER_MODEL,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": FOOD_RECOGNITION_PROMPT,
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{image_base64}"
+                            },
+                        },
+                    ],
+                }
+            ],
+            temperature=0,
+        )
+
+        raw_text = response.choices[0].message.content
+
+        return _parse_food_items(raw_text)
+
+    except Exception as e:
+        raise RuntimeError(
+            f"Ошибка распознавания через OpenRouter: {e}"
+        ) from e
 
 
 def _parse_food_items(raw_text: str | None) -> list[dict]:
     if not raw_text:
-        raise ValueError("Gemini вернул пустой ответ")
+        raise ValueError("Qwen вернул пустой ответ")
 
     text = _strip_markdown_code_fence(raw_text)
     data: Any = json.loads(text)
@@ -59,7 +97,7 @@ def _parse_food_items(raw_text: str | None) -> list[dict]:
         data = data.get("items") or data.get("foods") or [data]
 
     if not isinstance(data, list) or not data:
-        raise ValueError("Gemini вернул JSON не в формате списка продуктов")
+        raise ValueError("Qwen вернул JSON не в формате списка продуктов")
 
     return [_normalize_food_item(item) for item in data]
 
@@ -89,14 +127,4 @@ def _normalize_confidence(value: Any) -> float:
     return max(0.0, min(1.0, confidence))
 
 
-def _fallback_food_result() -> list[dict]:
-    return [
-        {
-            "name": "Омлет",
-            "calories": 250,
-            "protein": 18,
-            "fat": 16,
-            "carbs": 3,
-            "confidence": 0.92,
-        }
-    ]
+
